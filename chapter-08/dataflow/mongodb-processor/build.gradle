@@ -1,39 +1,10 @@
-buildscript {
-	ext {
-		springBootVersion = '2.0.3.RELEASE'
-		springBootThinLauncherVersion = '1.0.12.RELEASE'
-	}
-	repositories {
-		mavenCentral()
-	}
-	dependencies {
-		classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
-//	  	classpath("org.springframework.boot.experimental:spring-boot-thin-gradle-plugin:${springBootThinLauncherVersion}")
-	}
-}
-
-apply plugin: 'java'
-apply plugin: 'eclipse'
-apply plugin: 'io.spring.dependency-management'
-apply plugin: 'org.springframework.boot'
-//apply plugin: 'org.springframework.boot.experimental.thin-launcher'
-
-group = 'org.rpis5.chapters.chapter_08.dataflow'
-version = '0.0.1-SNAPSHOT'
-sourceCompatibility = 1.8
-
-repositories {
-	mavenCentral()
-}
-
-
 ext {
-	springCloudVersion = 'Finchley.RELEASE'
+	springCloudVersion = 'Hoxton.SR8'
 }
 
 dependencies {
 	compile('org.springframework.boot:spring-boot-starter-data-mongodb-reactive')
-  	compile('org.springframework.cloud:spring-cloud-stream-reactive')
+//  	compile('org.springframework.cloud:spring-cloud-stream-reactive')
 
   	annotationProcessor('org.springframework.boot:spring-boot-configuration-processor')
 

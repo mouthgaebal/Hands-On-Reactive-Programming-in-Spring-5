@@ -9,6 +9,7 @@ import org.reactivestreams.Publisher;
 import org.springframework.http.codec.HttpMessageReader;
 import org.springframework.http.codec.HttpMessageWriter;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -106,6 +107,11 @@ public class MockClientResponse implements ClientResponse {
 	}
 
 	@Override
+	public Mono<Void> releaseBody() {
+		return body(null);
+	}
+
+	@Override
 	public <T> Mono<ResponseEntity<T>> toEntity(Class<T> bodyType) {
 		return this.<Mono<T>>body(null).map(ResponseEntity.status(status)::body);
 	}
@@ -125,6 +131,21 @@ public class MockClientResponse implements ClientResponse {
 	public <T> Mono<ResponseEntity<List<T>>> toEntityList(ParameterizedTypeReference<T> typeReference) {
 		return this.<Flux<T>>body(null).collectList()
 		                               .map(ResponseEntity.status(status)::body);
+	}
+
+	@Override
+	public Mono<ResponseEntity<Void>> toBodilessEntity() {
+		return body(null);
+	}
+
+	@Override
+	public Mono<WebClientResponseException> createException() {
+		return body(null);
+	}
+
+	@Override
+	public String logPrefix() {
+		return getClass().getSimpleName() + "-";
 	}
 
 	private class DefaultHeaders implements Headers {

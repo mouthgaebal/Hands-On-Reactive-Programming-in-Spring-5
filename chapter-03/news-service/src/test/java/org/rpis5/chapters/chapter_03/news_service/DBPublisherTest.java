@@ -1,13 +1,13 @@
 package org.rpis5.chapters.chapter_03.news_service;
 
-import org.rpis5.chapters.chapter_03.WithEmbeddedMongo;
-import org.rpis5.chapters.chapter_03.news_service.dto.News;
+import com.mongodb.client.result.InsertManyResult;
 import com.mongodb.reactivestreams.client.MongoCollection;
-import com.mongodb.reactivestreams.client.Success;
 import io.reactivex.Flowable;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.tck.PublisherVerification;
 import org.reactivestreams.tck.TestEnvironment;
+import org.rpis5.chapters.chapter_03.WithEmbeddedMongo;
+import org.rpis5.chapters.chapter_03.news_service.dto.News;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 
@@ -51,7 +51,8 @@ public class DBPublisherTest extends PublisherVerification<News> implements
             return;
         }
 
-        Flowable<Success> successFlowable = Flowable.fromPublisher(collection.drop())
+        // The main change to the MongoDB Reactive Streams Java Driver 1.12 driver is the removal of the Success type.
+        Flowable<InsertManyResult> successFlowable = Flowable.fromPublisher(collection.drop())
                 .ignoreElements()
                 .andThen(
                         Flowable

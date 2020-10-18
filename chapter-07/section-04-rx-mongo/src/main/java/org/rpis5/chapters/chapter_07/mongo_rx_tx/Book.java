@@ -3,6 +3,7 @@ package org.rpis5.chapters.chapter_07.mongo_rx_tx;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.With;
 import lombok.experimental.Wither;
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
@@ -17,7 +18,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
-@Wither
+@With
 public class Book {
    @Id
    private ObjectId id;

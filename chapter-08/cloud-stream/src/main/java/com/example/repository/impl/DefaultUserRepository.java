@@ -29,7 +29,7 @@ class DefaultUserRepository implements UserRepository {
                                 .addToSet("user.name").as("name")
                                 .addToSet("user.displayName").as("displayName")
                                 .count().as("popularity"),
-                        Aggregation.sort(new Sort(new Sort.Order(Sort.Direction.DESC, "popularity"))),
+                        Aggregation.sort(Sort.by(Sort.Direction.DESC, "popularity")),
                         Aggregation.limit(1),
                         Aggregation.unwind("name"),
                         Aggregation.unwind("displayName")
@@ -45,7 +45,7 @@ class DefaultUserRepository implements UserRepository {
                                 .addToSet("mentions.screenName").as("name")
                                 .addToSet("mentions.screenName").as("displayName")
                                 .count().as("popularity"),
-                        Aggregation.sort(new Sort(new Sort.Order(Sort.Direction.DESC, "popularity"))),
+                        Aggregation.sort(Sort.by(Sort.Direction.DESC, "popularity")),
                         Aggregation.limit(1),
                         Aggregation.unwind("name"),
                         Aggregation.unwind("displayName")

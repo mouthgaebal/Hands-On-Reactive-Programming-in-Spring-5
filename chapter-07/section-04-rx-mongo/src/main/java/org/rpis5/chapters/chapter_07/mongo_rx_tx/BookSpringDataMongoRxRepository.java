@@ -18,7 +18,8 @@ public interface BookSpringDataMongoRxRepository
 
    Flux<Book> findManyByTitleRegex(String regexp);
 
-   @Meta(maxScanDocuments = 3)
+   // since 2.2. $maxScan has been removed without replacement in MongoDB 4.2.
+   @Meta
    Flux<Book> findByAuthorsOrderByPublishingYearDesc(Publisher<String> authors);
 
    @Query("{ 'authors.1': { $exists: true } }")

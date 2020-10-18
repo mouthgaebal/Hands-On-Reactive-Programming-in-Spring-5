@@ -8,5 +8,4 @@ dependencies {
     testCompile('io.projectreactor:reactor-core')
     testCompile('io.projectreactor:reactor-test')
     testCompile('junit:junit:4.12')
-
 }

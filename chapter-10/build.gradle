@@ -1,42 +1,12 @@
-buildscript {
-	ext {
-//		springBootVersion = '2.1.0.M4'
-		springBootVersion = '2.0.5.RELEASE'
-	}
-	repositories {
-		mavenCentral()
-		maven { url "https://repo.spring.io/snapshot" }
-		maven { url "https://repo.spring.io/milestone" }
-	}
-	dependencies {
-		classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
-	}
-}
-
-apply plugin: 'java'
-apply plugin: 'eclipse'
-apply plugin: 'org.springframework.boot'
-apply plugin: 'io.spring.dependency-management'
-
-sourceCompatibility = 1.8
-
-repositories {
-	mavenCentral()
-	maven { url 'https://repo.spring.io/milestone' }
-	maven { url 'https://repo.spring.io/snapshot' }
-	maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
-}
-
 ext {
-	reactorVersion = '3.2.0.RELEASE'
-	springCloudVersion = '2.0.1.RELEASE'
-	springBootAdminVersion = '2.0.3'
+	springCloudVersion = 'Hoxton.SR8'
+	springBootAdminVersion = '2.3.0'
 }
 
 dependencies {
 	// Using milestone version to showcase Micrometer integration
 	//compile("io.projectreactor:reactor-core")
-	compile("io.projectreactor:reactor-core:${reactorVersion}")
+	compile("io.projectreactor:reactor-core")
 
 	compile('org.springframework.boot:spring-boot-autoconfigure')
 	compile('org.springframework.boot:spring-boot-starter-webflux')
@@ -48,21 +18,28 @@ dependencies {
 	compile('io.micrometer:micrometer-registry-prometheus')
 
 	// Distributed tracing
-	compile("org.springframework.cloud:spring-cloud-starter-sleuth:${springCloudVersion}")
-	compile("org.springframework.cloud:spring-cloud-starter-zipkin:${springCloudVersion}")
+	compile("org.springframework.cloud:spring-cloud-starter-sleuth")
+	compile("org.springframework.cloud:spring-cloud-starter-zipkin")
 
 	// Pretty UI with Spring Boot Admin
 	compile("de.codecentric:spring-boot-admin-starter-server:${springBootAdminVersion}")
 	compile("de.codecentric:spring-boot-admin-starter-client:${springBootAdminVersion}")
 
-  	compileOnly('org.projectlombok:lombok:1.18.2')
+  	compileOnly('org.projectlombok:lombok')
+	annotationProcessor('org.projectlombok:lombok')
 	// To start embedded MongoDB
 	compile('de.flapdoodle.embed:de.flapdoodle.embed.mongo')
 
 	// To communicate with NTP servers
-	compile('commons-net:commons-net:3.6')
+	compile('commons-net:commons-net:3.7.1')
 }
 
 springBoot {
 	buildInfo()
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+	}
 }

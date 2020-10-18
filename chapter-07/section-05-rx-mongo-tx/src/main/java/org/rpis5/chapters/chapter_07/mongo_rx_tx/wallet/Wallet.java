@@ -3,6 +3,7 @@ package org.rpis5.chapters.chapter_07.mongo_rx_tx.wallet;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.With;
 import lombok.experimental.Wither;
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
@@ -10,7 +11,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 @NoArgsConstructor
 @AllArgsConstructor
-@Wither
+@With
 @Data
 @Document(collection = "wallet")
 public class Wallet {

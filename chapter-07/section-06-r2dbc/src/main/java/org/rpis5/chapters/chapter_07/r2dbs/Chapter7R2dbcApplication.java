@@ -8,7 +8,10 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Import;
-import org.springframework.data.r2dbc.function.TransactionalDatabaseClient;
+import org.springframework.data.r2dbc.connectionfactory.R2dbcTransactionManager;
+import org.springframework.data.r2dbc.core.DatabaseClient;
+import org.springframework.transaction.ReactiveTransactionManager;
+import org.springframework.transaction.reactive.TransactionalOperator;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -29,37 +32,39 @@ import java.util.Arrays;
 public class Chapter7R2dbcApplication implements CommandLineRunner {
 
     private final PostgresqlConnectionFactory pgConnectionFactory;
-    private final TransactionalDatabaseClient databaseClient;
+    private final DatabaseClient databaseClient;
     private final BookRepository bookRepository;
 
+    /**
+     * @see <a href="https://docs.spring.io/spring-data/r2dbc/docs/1.1.4.RELEASE/reference/html/#r2dbc.datbaseclient.transactions">Spring Data R2DBC Transactions</a>
+     */
     public static void main(String[] args) {
         SpringApplication.run(Chapter7R2dbcApplication.class, args);
     }
 
     @Override
     public void run(String... args) {
-        databaseClient.execute()
-            .sql("create table book (id integer, title varchar(50), publishing_year integer);")
+        ReactiveTransactionManager tm = new R2dbcTransactionManager(pgConnectionFactory);
+        TransactionalOperator operator = TransactionalOperator.create(tm);
+        databaseClient.execute("create table book (id integer, title varchar(50), publishing_year integer);")
             .fetch()
             .rowsUpdated()
             .doOnSuccess(count -> log.info("Database schema created"))
             .block();
 
         // Manual data insert
-        databaseClient.execute()
-            .sql("insert into book (id, title, publishing_year) values (4, 'Yellow Mars', 2009);")
+        databaseClient.execute("insert into book (id, title, publishing_year) values (4, 'Yellow Mars', 2009);")
             .fetch()
             .rowsUpdated()
             .doOnSuccess(count -> log.info("Manual book insert, inserted {}", count))
             .block();
 
-        databaseClient.inTransaction(session ->
-            session.execute()
-                .sql("select * from book where id = 4")
+        databaseClient.execute("select * from book where id = 4")
                 .as(Book.class)
                 .fetch()
-                .all())
-            .subscribe(b -> log.info("Book from transaction: {}", b));
+                .rowsUpdated()
+                .as(operator::transactional)
+                .subscribe(b -> log.info("Book from transaction: {}", b));
 
         // Note: Repo is in alpha, no ID is generated
         bookRepository.saveAll(Arrays.asList(

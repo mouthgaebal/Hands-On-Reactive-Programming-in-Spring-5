@@ -111,6 +111,7 @@ public class NewsServiceApp {
                                });
     }
 
+
     @Bean
     public Action<Chain> home() {
         return chain -> chain.get(ctx -> {

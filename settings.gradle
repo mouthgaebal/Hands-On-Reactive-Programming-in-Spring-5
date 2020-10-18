@@ -11,71 +11,74 @@ include ":chapter-03-jdk9"
 project(':chapter-03-jdk9').projectDir = new File(rootProject.projectDir, 'chapter-03/jdk9')
 
 include ":chapter-03-vert.x"
-project(':chapter-03-vert.x').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-03-vert.x').projectDir = new File(rootProject.projectDir, 'chapter-03/vert.x')
 
 include ":chapter-03-conversion_problem"
-project(':chapter-03-conversion_problem').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-03-conversion_problem').projectDir = new File(rootProject.projectDir, 'chapter-03/conversion_problem')
 
 include ":chapter-03-push.vs.pull"
-project(':chapter-03-push.vs.pull').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-03-push.vs.pull').projectDir = new File(rootProject.projectDir, 'chapter-03/push.vs.pull')
 
 include ":chapter-03-rxjava-reactivestreams-ratpack"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-03-rxjava-reactivestreams-ratpack').projectDir = new File(rootProject.projectDir, 'chapter-03/rxjava-reactivestreams-ratpack')
 
 include ":chapter-03-async.vs.reactive"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03/async.vs.reactive')
+
 
 include "chapter-04"
 
 include "chapter-05"
 
+
 include "chapter-06-samples"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-06-samples').projectDir = new File(rootProject.projectDir, 'chapter-06/samples')
 
 include "chapter-06-functional-spring-boot"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-06-functional-spring-boot').projectDir = new File(rootProject.projectDir, 'chapter-06/functional-spring-boot')
 
 include "chapter-06-security-samples"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-06-security-samples').projectDir = new File(rootProject.projectDir, 'chapter-06/security-samples')
+
 
 include "chapter-07-section-01-jdbc"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-07-section-01-jdbc').projectDir = new File(rootProject.projectDir, 'chapter-07/section-01-jdbc')
 
 include "chapter-07-section-02-jpa"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-07-section-02-jpa').projectDir = new File(rootProject.projectDir, 'chapter-07/section-02-jpa')
 
 include "chapter-07-section-03-mongo"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-07-section-03-mongo').projectDir = new File(rootProject.projectDir, 'chapter-07/section-03-mongo')
 
 include "chapter-07-section-04-rx-mongo"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-07-section-04-rx-mongo').projectDir = new File(rootProject.projectDir, 'chapter-07/section-04-rx-mongo')
 
 include "chapter-07-section-05-rx-mongo-tx"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-07-section-05-rx-mongo-tx').projectDir = new File(rootProject.projectDir, 'chapter-07/section-05-rx-mongo-tx')
 
 include "chapter-07-section-06-r2dbc"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-07-section-06-r2dbc').projectDir = new File(rootProject.projectDir, 'chapter-07/section-06-r2dbc')
 
 include "chapter-07-section-07-rx-webflux"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-07-section-07-rx-webflux').projectDir = new File(rootProject.projectDir, 'chapter-07/section-07-rx-webflux')
 
 include "chapter-07-section-08-rx-dbs"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-07-section-08-rx-dbs').projectDir = new File(rootProject.projectDir, 'chapter-07/section-08-rx-dbs')
 
 include "chapter-07-section-09-rx-sync"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-07-section-09-rx-sync').projectDir = new File(rootProject.projectDir, 'chapter-07/section-09-rx-sync')
 
 include "chapter-07-section-10-rxjava2-jdbc"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-07-section-10-rxjava2-jdbc').projectDir = new File(rootProject.projectDir, 'chapter-07/section-10-rxjava2-jdbc')
 
 include "chapter-08-dataflow-mongodb-processor"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-08-dataflow-mongodb-processor').projectDir = new File(rootProject.projectDir, 'chapter-08/dataflow-mongodb-processor')
 
 include "chapter-08-cloud-stream"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-08-cloud-stream').projectDir = new File(rootProject.projectDir, 'chapter-08/cloud-stream')
 
 include "chapter-08-cloud-function"
-project(':chapter-03-async.vs.reactive').projectDir = new File(rootProject.projectDir, 'chapter-03-async.vs.reactive')
+project(':chapter-08-cloud-function').projectDir = new File(rootProject.projectDir, 'chapter-08/cloud-function')
 
 include "chapter-09"
 

@@ -5,6 +5,7 @@ dependencies {
 	compile("io.projectreactor:reactor-test")
 
 	compile('org.projectlombok:lombok')
+	annotationProcessor('org.projectlombok:lombok')
 
 	testCompile('org.springframework.boot:spring-boot-starter-test')
 }
