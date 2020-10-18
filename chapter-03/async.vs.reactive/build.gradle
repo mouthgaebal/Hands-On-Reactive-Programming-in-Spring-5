@@ -1,9 +1,10 @@
-group = 'com.example'
-version = '0.0.1-SNAPSHOT'
+ext {
+    reactiveStreamVersion = dependencyManagement.managedVersions['org.reactivestreams:reactive-streams']
+}
 
 dependencies {
     compile('org.reactivestreams:reactive-streams')
-    testCompile('org.reactivestreams:reactive-streams-tck:1.0.3')
+    testCompile("org.reactivestreams:reactive-streams-tck:${reactiveStreamVersion}")
     testCompile('org.hamcrest:hamcrest')
     testCompile('io.projectreactor:reactor-core')
     testCompile('io.projectreactor:reactor-test')

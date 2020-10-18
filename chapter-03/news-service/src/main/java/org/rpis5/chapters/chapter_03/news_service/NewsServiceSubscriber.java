@@ -60,6 +60,7 @@ public class NewsServiceSubscriber implements Subscriber<NewsLetter> {
                 remaining.set(take);
             }
             return Optional.of(letter);
-        } return Optional.empty();
+        }
+        return Optional.empty();
     }
 }          
