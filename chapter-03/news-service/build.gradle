@@ -29,6 +29,9 @@ dependencies {
     compileOnly('org.projectlombok:lombok')
     annotationProcessor('org.projectlombok:lombok')
 
+    // Run/Debug Configurations -> Edit Configurations -> Templates -> TestNG 탭의 VM options 에 -ea -Dtestng.dtd.http=true 설정 필요
     testCompile("org.reactivestreams:reactive-streams-tck:${reactiveStreamVersion}")
     testCompile('org.springframework.boot:spring-boot-starter-test')
+    testCompile group: 'org.testng', name: 'testng', version: '7.3.0'
+
 }
