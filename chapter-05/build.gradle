@@ -1,39 +1,10 @@
-buildscript {
-	ext {
-		springBootVersion = '2.1.0.M4'
-	}
-	repositories {
-		mavenCentral()
-		maven { url "https://repo.spring.io/snapshot" }
-		maven { url "https://repo.spring.io/milestone" }
-	}
-	dependencies {
-		classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
-	}
-}
-
-apply plugin: 'java'
-apply plugin: 'eclipse'
-apply plugin: 'org.springframework.boot'
-apply plugin: 'io.spring.dependency-management'
-
-sourceCompatibility = 1.8
-
-repositories {
-	mavenCentral()
-	maven { url 'https://repo.spring.io/milestone' }
-	maven { url 'https://repo.spring.io/snapshot' }
-	maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
-}
-
 ext {
-	reactorExtraVersion = '3.2.0.RELEASE'
-	springBootAdminVersion = '2.1.0-SNAPSHOT'
-	springCloudVersion = 'Greenwich.BUILD-SNAPSHOT'
+	springBootAdminVersion = '2.1.6'
+	springCloudVersion = 'Hoxton.SR8'
 }
 
 dependencies {
-	compile("io.reactivex.rxjava2:rxjava:2.2.0")
+	compile("io.reactivex.rxjava2:rxjava")
 	compile("io.projectreactor:reactor-core")
 	compile('org.springframework.boot:spring-boot-autoconfigure')
 	compile('org.springframework.boot:spring-boot-starter-webflux')
@@ -43,7 +14,7 @@ dependencies {
 
 	compile('de.flapdoodle.embed:de.flapdoodle.embed.mongo')
 
-    compile("io.projectreactor.addons:reactor-extra:${reactorExtraVersion}")
+    compile("io.projectreactor.addons:reactor-extra")
 	
     compileOnly('org.projectlombok:lombok')
 

@@ -1,12 +1,31 @@
 group = 'org.rpis5.chapters'
 version = '0.0.1-SNAPSHOT'
 
-apply plugin: 'java'
+buildscript {
+  ext {
+    springVersion = "2.3.4.RELEASE"
+  }
 
-sourceCompatibility = 1.8
+  repositories {
+    maven {
+      url "https://plugins.gradle.org/m2/"
+    }
 
-repositories {
-  mavenCentral()
-  maven { url "https://repo.spring.io/snapshot" }
-  maven { url "https://repo.spring.io/milestone" }
+    dependencies {
+      classpath "org.springframework.boot:spring-boot-gradle-plugin:$springVersion"
+      classpath "io.spring.gradle:dependency-management-plugin:1.0.10.RELEASE"
+    }
+  }
+}
+
+subprojects {
+  apply plugin: 'java-library'
+  apply plugin: 'io.spring.dependency-management'
+
+  sourceCompatibility = JavaVersion.VERSION_11
+
+  repositories {
+    jcenter()
+    mavenCentral()
+  }
 }
