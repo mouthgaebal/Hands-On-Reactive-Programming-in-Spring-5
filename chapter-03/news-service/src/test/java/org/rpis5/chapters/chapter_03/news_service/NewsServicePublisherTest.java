@@ -21,7 +21,7 @@ public class NewsServicePublisherTest extends PublisherVerification<NewsLetter>
         implements WithEmbeddedMongo {
 
     public NewsServicePublisherTest() {
-        super(new TestEnvironment(2000, 2000));
+        super(new TestEnvironment(2000, 2000, true));
     }
 
     @Override

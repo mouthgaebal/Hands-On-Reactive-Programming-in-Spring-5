@@ -12,7 +12,10 @@ dependencies {
     compile('io.reactivex:rxnetty-tcp:0.5.3')
     compile('io.reactivex.rxjava2:rxjava')
     compile('org.jctools:jctools-core:3.1.0')
-    
+    // https://mvnrepository.com/artifact/io.projectreactor/reactor-core
+    compile 'io.projectreactor:reactor-core'
+
+
     compile('de.flapdoodle.embed:de.flapdoodle.embed.mongo')
 
     compile "javax.xml.bind:jaxb-api:2.3.0"
