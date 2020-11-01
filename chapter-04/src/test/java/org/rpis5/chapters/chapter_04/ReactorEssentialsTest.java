@@ -11,18 +11,16 @@ import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.ConnectableFlux;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.LinkedList;
-import java.util.Optional;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
@@ -228,7 +226,9 @@ public class ReactorEssentialsTest {
                     acc[(int) (elem.getT1() % bucketSize)] = elem.getT2();
                     return acc;
                 })
+            .doOnNext(e -> log.error("before skip : {}", Arrays.toString(e)))
             .skip(bucketSize)
+            .doOnNext(e -> log.error("after skip : {}", Arrays.toString(e)))
             .map(array -> Arrays.stream(array).sum() * 1.0 / bucketSize)
             .subscribe(av -> log.info("Running average: {}", av));
     }
@@ -241,12 +241,42 @@ public class ReactorEssentialsTest {
     }
 
     @Test
-    public void combineLatestOperator() {
+    public void combineLatestOperatorWithConcat() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
         Flux.concat(
-            Flux.range(1, 3),
-            Flux.range(4, 2),
-            Flux.range(6, 5)
-        ).subscribe(e -> log.info("onNext: {}", e));
+                Flux.range(1, 3).delayElements(Duration.ofMillis(500L), Schedulers.newElastic("s-01")),
+                Flux.range(4, 2).delayElements(Duration.ofMillis(300L), Schedulers.newElastic("s-02")),
+                Flux.range(6, 5).delayElements(Duration.ofMillis(200L), Schedulers.newElastic("s-03"))
+        ).doOnComplete(latch::countDown)
+                .subscribe(value -> log.info("concat - onNext: {}", value));
+        
+        latch.await();
+    }
+    
+    @Test
+    public void combineLatestOperatorWithMerge() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        Flux.merge(
+                Flux.range(1, 3).delayElements(Duration.ofMillis(500L), Schedulers.newElastic("s-01")),
+                Flux.range(4, 2).delayElements(Duration.ofMillis(300L), Schedulers.newElastic("s-02")),
+                Flux.range(6, 5).delayElements(Duration.ofMillis(200L), Schedulers.newElastic("s-03"))
+        ).doOnComplete(latch::countDown)
+                .subscribe(value -> log.info("merge - onNext: {}", value));
+    
+        latch.await();
+    }
+    
+    @Test
+    public void combineLatestOperatorWithZip() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        Flux.zip(
+                Flux.range(1, 3).delayElements(Duration.ofMillis(500L), Schedulers.newElastic("s-01")),
+                Flux.range(4, 2).delayElements(Duration.ofMillis(300L), Schedulers.newElastic("s-02")),
+                Flux.range(6, 5).delayElements(Duration.ofMillis(200L), Schedulers.newElastic("s-03"))
+        ).doOnComplete(latch::countDown)
+                .subscribe(value -> log.info("zip - onNext: {}", value));
+        
+        latch.await();
     }
 
     @Test
@@ -260,6 +290,7 @@ public class ReactorEssentialsTest {
     public void windowByPredicate() {
         Flux<Flux<Integer>> fluxFlux = Flux.range(101, 20)
             .windowUntil(this::isPrime, true);
+//            .window(5);
 
         fluxFlux.subscribe(window -> window
             .collectList()
@@ -270,29 +301,21 @@ public class ReactorEssentialsTest {
     public void groupByExample() {
         Flux.range(1, 7)
             .groupBy(e -> e % 2 == 0 ? "Even" : "Odd")
-            .subscribe(groupFlux -> groupFlux
-                .scan(
-                    new LinkedList<>(),
-                    (list, elem) -> {
-                        if (list.size() > 1) {
-                            list.remove(0);
-                        }
-                        list.add(elem);
-                        return list;
-                    })
-                .filter(arr -> !arr.isEmpty())
-                .subscribe(data ->
-                    log.info("{}: {}",
-                        groupFlux.key(),
-                        data)));
+            .subscribe(groupFlux -> {
+                Flux<LinkedList<Integer>> scan = groupFlux.scan(
+                        new LinkedList<>(),
+                        (list, elem) -> {
+                            if(list.size() > 1) {
+                                list.remove(0);
+                            }
+                            list.add(elem);
+                            return list;
+                        });
+                scan.filter(arr -> !arr.isEmpty())
+                        .subscribe(data -> log.info("{}: {}", groupFlux.key(), data));
+            });
     }
-
-    private Flux<String> requestBooks(String user) {
-        return Flux.range(1, random.nextInt(3) + 1)
-            .delayElements(Duration.ofMillis(3))
-            .map(i -> "book-" + i);
-    }
-
+    
     @Test
     public void flatMapExample() throws InterruptedException {
         Flux.just("user-1", "user-2", "user-3")
@@ -302,12 +325,25 @@ public class ReactorEssentialsTest {
 
         Thread.sleep(1000);
     }
-
+    
+    private Flux<String> requestBooks(String user) {
+        return Flux.range(1, getRandom(user))
+                .delayElements(Duration.ofMillis(3))
+                .map(i -> "book-" + i);
+    }
+    
+    private int getRandom(String user) {
+        int rnd = random.nextInt(3) + 1;
+        log.warn("random : {}::{}", user, rnd);
+        return rnd;
+    }
+    
+    
     @Test
     public void sampleExample() throws InterruptedException {
         Flux.range(1, 100)
             .delayElements(Duration.ofMillis(1))
-            .sample(Duration.ofMillis(20))
+            .sample(Duration.ofMillis(100))
             .subscribe(e -> log.info("onNext: {}", e));
 
         Thread.sleep(1000);
@@ -338,7 +374,55 @@ public class ReactorEssentialsTest {
             .log("FluxEvents")
             .subscribe(e -> {}, e -> {}, () -> {}, s -> s.request(2));
     }
+    
+    @Test
+    public void usingPushOperator() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        Flux.push(emitter -> {
+            emitter.onDispose(() -> log.info("Disposed"));
+            IntStream.range(20, 30).parallel()
+                    .forEach(t -> emitter.next(Thread.currentThread().getName() + " : " + t));
+            emitter.complete();
+        })
+                .delayElements(Duration.ofMillis(1))
+                .doOnComplete(latch::countDown)
+                .subscribe(e -> log.info("onNext: {}", e));
+        
+        latch.await(3, TimeUnit.SECONDS);
+    }
+    
+    @Test
+    public void usingCreateOperator() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        Flux.create(emitter -> {
+            emitter.onDispose(() -> log.info("Disposed"));
 
+            IntStream.range(20, 30).parallel()
+                    .forEach(t -> emitter.next(Thread.currentThread().getName() + " : " + t));
+            emitter.complete();
+        }).delayElements(Duration.ofMillis(1))
+                .doOnComplete(latch::countDown)
+                .subscribe(e -> log.info("onNext: {}", e));
+    
+        latch.await(3, TimeUnit.SECONDS);
+    }
+    
+    @Test
+    public void usingGenerate() throws InterruptedException {
+        Flux.generate(
+                () -> Tuples.of(0L, 1L),
+                (state, sink) -> {
+                    log.info("generated value: {}", state.getT2());
+                    sink.next(state.getT2());
+                    long newValue = state.getT1() + state.getT2();
+                    return Tuples.of(state.getT2(), newValue);
+                })
+                .take(7)
+                .subscribe(e -> log.info("onNext: {}", e));
+        
+        Thread.sleep(100);
+    }
+    
     @Test
     public void tryWithResources() {
         try (Connection conn = Connection.newConnection()) {
@@ -429,44 +513,6 @@ public class ReactorEssentialsTest {
         );
 
         Thread.sleep(1000);
-    }
-
-    @Test
-    public void usingPushOperator() throws InterruptedException {
-        Flux.push(emitter -> IntStream
-            .range(2000, 100000)
-            .forEach(emitter::next))
-            .delayElements(Duration.ofMillis(1))
-            .subscribe(e -> log.info("onNext: {}", e));
-
-        Thread.sleep(1000);
-    }
-
-    @Test
-    public void usingCreateOperator() throws InterruptedException {
-        Flux.create(emitter -> {
-            emitter.onDispose(() -> log.info("Disposed"));
-            // push events to emitter
-        })
-            .subscribe(e -> log.info("onNext: {}", e));
-
-        Thread.sleep(1000);
-    }
-
-    @Test
-    public void usingGenerate() throws InterruptedException {
-        Flux.generate(
-            () -> Tuples.of(0L, 1L),
-            (state, sink) -> {
-                log.info("generated value: {}", state.getT2());
-                sink.next(state.getT2());
-                long newValue = state.getT1() + state.getT2();
-                return Tuples.of(state.getT2(), newValue);
-            })
-            .take(7)
-            .subscribe(e -> log.info("onNext: {}", e));
-
-        Thread.sleep(100);
     }
 
     @Test
