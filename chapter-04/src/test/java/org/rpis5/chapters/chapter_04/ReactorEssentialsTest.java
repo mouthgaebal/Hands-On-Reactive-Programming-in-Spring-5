@@ -15,6 +15,7 @@ import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
+import reactor.util.retry.Retry;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -502,14 +503,31 @@ public class ReactorEssentialsTest {
     @Test
     public void usingWhenExample() throws InterruptedException {
         Flux.usingWhen(
-            Transaction.beginTransaction(),
-            transaction -> transaction.insertRows(Flux.just("A", "B")),
-            Transaction::commit,
-            Transaction::rollback
+                Transaction.beginTransaction(),
+                transaction -> transaction.insertRows(Flux.just("A", "B")),
+                Transaction::commit,
+                Transaction::rollback
         ).subscribe(
             d -> log.info("onNext: {}", d),
             e -> log.info("onError: {}", e.getMessage()),
             () -> log.info("onComplete")
+        );
+
+        Thread.sleep(1000);
+    }
+
+    @Test
+    public void usingWhenExample1() throws InterruptedException {
+        Flux.usingWhen(
+                Transaction.beginTransaction(),
+                transaction -> transaction.insertRows(Flux.just("A", "B")),
+                transaction -> transaction.commit(), // complete
+                (transaction, throwable) -> transaction.rollback(), // error
+                transaction -> transaction.rollback() // cancel
+        ).subscribe(
+                d -> log.info("onNext: {}", d),
+                e -> log.error("onError: {}", e.getMessage()),
+                () -> log.info("onComplete")
         );
 
         Thread.sleep(1000);
@@ -555,6 +573,24 @@ public class ReactorEssentialsTest {
                 e -> log.warn("onError: {}", e.getMessage()),
                 () -> log.info("onComplete")
             );
+
+        Thread.sleep(5000);
+    }
+
+    @Test
+    public void handlingErrors1() throws InterruptedException {
+        Flux.just("user-1")
+                .flatMap(user ->
+                        recommendedBooks(user)
+                                .retryWhen(Retry.backoff(5, Duration.ofMillis(100)))
+                                .timeout(Duration.ofSeconds(3))
+                                .onErrorResume(e -> Flux.just("The Martian"))
+                )
+                .subscribe(
+                        b -> log.info("onNext: {}", b),
+                        e -> log.warn("onError: {}", e.getMessage()),
+                        () -> log.info("onComplete")
+                );
 
         Thread.sleep(5000);
     }
