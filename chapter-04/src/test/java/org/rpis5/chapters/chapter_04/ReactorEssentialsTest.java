@@ -1,5 +1,6 @@
 package org.rpis5.chapters.chapter_04;
 
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -20,6 +21,7 @@ import reactor.util.retry.Retry;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -63,6 +65,7 @@ public class ReactorEssentialsTest {
         Flux<String> stream1 = Flux.just("Hello", "world");
         Flux<Integer> stream2 = Flux.fromArray(new Integer[]{1, 2, 3});
         Flux<Integer> stream3 = Flux.range(1, 500);
+        IntStream intStream = IntStream.range(1, 500);
 
         Flux<String> emptyStream = Flux.empty();
         Flux<String> streamWithError = Flux.error(new RuntimeException("Hi!"));
@@ -81,6 +84,8 @@ public class ReactorEssentialsTest {
             .expectErrorMessage("IO error")
             .verify();
 
+//        stream8.subscribe(System.out::println);
+
         Mono<Void> noData = Mono.fromRunnable(() -> doLongAction());
 
         StepVerifier.create(noData)
@@ -90,10 +95,115 @@ public class ReactorEssentialsTest {
             .verify();
     }
 
+    private String httpRequest() {
+        log.info("Making HTTP request");
+        throw new RuntimeException("IO error");
+    }
+
+    private void doLongAction() {
+        log.info("Long action");
+    }
+
     @Test
     public void emptyOrError() {
         Flux<String> empty = Flux.empty();
         Mono<String> error = Mono.error(new RuntimeException("Unknown id"));
+    }
+
+    @Test
+    public void shouldCreateDefer() {
+        Mono<User> userMono = requestUserData("null");
+        userMono.subscribe(System.out::println);
+        userMono.subscribe(System.out::println);
+        userMono.subscribe(System.out::println);
+
+//        Mono<User> userMono = requestUserData(null);
+//        StepVerifier.create(userMono)
+//                .expectNextCount(0)
+//                .expectErrorMessage("Invalid user id")
+//                .verify();
+    }
+
+    public Mono<User> requestUserData(String userId) {
+        return Mono.defer(() ->
+                isValid(userId)
+                        ? Mono.fromCallable(() -> requestUser(userId))
+                        : Mono.error(new IllegalArgumentException("Invalid user id")));
+    }
+
+    @Test
+    public void shouldCreateDefer2() {
+        Mono<User> userMono2 = requestUserData2("null");
+        userMono2.subscribe(System.out::println);
+        userMono2.subscribe(System.out::println);
+        userMono2.subscribe(System.out::println);
+
+//        Mono<User> userMono2 = requestUserData2(null);
+//        StepVerifier.create(userMono2)
+//                .expectNextCount(0)
+//                .expectErrorMessage("Invalid user id")
+//                .verify();
+    }
+
+    public Mono<User> requestUserData2(String userId) {
+        return isValid(userId)
+                ? Mono.fromCallable(() -> requestUser(userId))
+                : Mono.error(new IllegalArgumentException("Invalid user id"));
+    }
+
+    private boolean isValid(String userId) {
+        log.warn("isValid!!!");
+        return userId != null;
+    }
+
+    private User requestUser(String id) {
+        return new User();
+    }
+
+    @ToString
+    static class User {
+        public String id, name;
+    }
+
+    @Test
+    public void justOrEmpty() {
+        final Mono<Object> justOrEmpty = Mono.justOrEmpty(null);
+        justOrEmpty.subscribe(System.out::println);
+
+        final Mono<Object> justOrEmpty2 = Mono.justOrEmpty("justOrEmpty2");
+        justOrEmpty2.subscribe(System.out::println);
+    }
+
+    @Test
+    public void fromMethods() {
+        final Mono<String> fromSupplier = Mono.fromSupplier(() -> "가나다");
+        final Mono<String> fromFuture = Mono.fromFuture(CompletableFuture.completedFuture("가나다"));
+        final Mono<Object> fromRunnable = Mono.fromRunnable(() -> {});
+
+        final Flux<Integer> fromArray = Flux.fromArray(new Integer[]{1, 2, 3});
+        final Flux<Integer> fromIterable = Flux.fromIterable(List.of(1, 2, 3));
+    }
+
+    @Test
+    public void simpleSubscribe() {
+        Flux.just("A", "B", "C")
+                .subscribe(
+                        data -> log.info("onNext : {}", data),
+                        errorIgnored -> {},
+                        () -> log.info("onComplete"));
+    }
+
+    @Test
+    public void simpleSubscribe2() {
+        Flux.range(1, 100)
+                .subscribe(
+                        data -> log.info("onNext : {}", data),
+                        errorIgnored -> {},
+                        () -> log.info("onComplete"),
+                        subscription -> {
+                            subscription.request(4);
+                            subscription.cancel();
+                        });
     }
 
     @Test
@@ -104,6 +214,7 @@ public class ReactorEssentialsTest {
                 data -> log.info("onNext: {}", data)
             );
         Thread.sleep(200);
+        log.warn("dispose() 호출");
         disposable.dispose();
     }
 
@@ -135,24 +246,25 @@ public class ReactorEssentialsTest {
 
         Flux<String> stream = Flux.just("Hello", "world", "!");
         stream.subscribe(subscriber);
-
-        Thread.sleep(100);
-    }
-
-    @Test
-    public void simpleSubscribe() {
-        Flux.just("A", "B", "C")
-            .subscribe(
-                System.out::println,
-                errorIgnored -> {
-                },
-                () -> System.out.println("Done"));
     }
 
     @Test
     public void mySubscriber() {
         Flux.just("A", "B", "C")
             .subscribe(new MySubscriber<>());
+    }
+
+    public static class MySubscriber<T> extends BaseSubscriber<T> {
+
+        public void hookOnSubscribe(Subscription subscription) {
+            System.out.println("Subscribed");
+            request(1);
+        }
+
+        public void hookOnNext(T value) {
+            System.out.println(value);
+            request(1);
+        }
     }
 
     @Test
@@ -162,26 +274,44 @@ public class ReactorEssentialsTest {
     }
 
     @Test
-    public void shouldCreateDefer() {
-        Mono<User> userMono = requestUserData(null);
-        StepVerifier.create(userMono)
-            .expectNextCount(0)
-            .expectErrorMessage("Invalid user id")
-            .verify();
+    public void cast() {
+        Object a = 1;
+        Object b = 2;
+        Object c = 3;
+
+        Flux.just(a, b, c)
+                .cast(Integer.class)
+                .reduce(Integer::sum)
+                .subscribe(System.out::println);
+    }
+
+    @Test
+    public void indexElements() {
+        Flux.range(2018, 5)
+                .timestamp()
+                .doOnNext(t2 -> log.info("timeStamp() : {}", t2))
+                .index()
+                .subscribe(e -> log.info("index: {}, ts: {}, value: {}",
+                        e.getT1(),
+                        Instant.ofEpochMilli(e.getT2().getT1()),
+                        e.getT2().getT2()));
     }
 
     @Test
     public void startStopStreamProcessing() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+
         Mono<?> startCommand = Mono.delay(Duration.ofSeconds(1));
         Mono<?> stopCommand = Mono.delay(Duration.ofSeconds(3));
         Flux<Long> streamOfData = Flux.interval(Duration.ofMillis(100));
 
         streamOfData
-            .skipUntilOther(startCommand)
-            .takeUntilOther(stopCommand)
-            .subscribe(System.out::println);
+            .skipUntilOther(startCommand) // 이때까지 건너뜀
+            .takeUntilOther(stopCommand) // 이때까지만 구독
+            .doOnComplete(latch::countDown)
+            .subscribe(e -> log.info("{}", e));
 
-        Thread.sleep(4000);
+        latch.await();
     }
 
     @Test
@@ -192,14 +322,19 @@ public class ReactorEssentialsTest {
     }
 
     @Test
-    public void indexElements() {
-        Flux.range(2018, 5)
-            .timestamp()
-            .index()
-            .subscribe(e -> log.info("index: {}, ts: {}, value: {}",
-                e.getT1(),
-                Instant.ofEpochMilli(e.getT2().getT1()),
-                e.getT2().getT2()));
+    public void distinct() {
+        Flux.just(1, 1, 1, 2, 2, 3, 2, 1, 1, 4)
+                .distinct()
+                .collectList()
+                .subscribe(System.out::println);
+    }
+
+    @Test
+    public void distinctUntilChanged() {
+        Flux.just(1, 1, 1, 2, 2, 3, 2, 1, 1, 4)
+                .distinctUntilChanged()
+                .collectList()
+                .subscribe(System.out::println);
     }
 
     @Test
@@ -210,7 +345,21 @@ public class ReactorEssentialsTest {
     }
 
     @Test
+    public void findingIfThereIsAllEvenElements() {
+        Flux.just(3, 5, 7, 9, 11, 15, 16, 17)
+                .all(e -> e % 2 == 0)
+                .subscribe(allEvens -> log.info("all evens: {}", allEvens));
+    }
+
+    @Test
     public void reduceExample() {
+        Flux.range(1, 5)
+                .reduce(0, (acc, elem) -> acc + elem)
+                .subscribe(result -> log.info("Result: {}", result));
+    }
+
+    @Test
+    public void scanExample() {
         Flux.range(1, 5)
             .scan(0, (acc, elem) -> acc + elem)
             .subscribe(result -> log.info("Result: {}", result));
@@ -227,9 +376,9 @@ public class ReactorEssentialsTest {
                     acc[(int) (elem.getT1() % bucketSize)] = elem.getT2();
                     return acc;
                 })
-            .doOnNext(e -> log.error("before skip : {}", Arrays.toString(e)))
+            .doOnNext(e -> log.warn("before skip : {}", Arrays.toString(e)))
             .skip(bucketSize)
-            .doOnNext(e -> log.error("after skip : {}", Arrays.toString(e)))
+            .doOnNext(e -> log.warn("after skip : {}", Arrays.toString(e)))
             .map(array -> Arrays.stream(array).sum() * 1.0 / bucketSize)
             .subscribe(av -> log.info("Running average: {}", av));
     }
@@ -242,7 +391,7 @@ public class ReactorEssentialsTest {
     }
 
     @Test
-    public void combineLatestOperatorWithConcat() throws InterruptedException {
+    public void concatOperator() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         Flux.concat(
                 Flux.range(1, 3).delayElements(Duration.ofMillis(500L), Schedulers.newElastic("s-01")),
@@ -250,12 +399,12 @@ public class ReactorEssentialsTest {
                 Flux.range(6, 5).delayElements(Duration.ofMillis(200L), Schedulers.newElastic("s-03"))
         ).doOnComplete(latch::countDown)
                 .subscribe(value -> log.info("concat - onNext: {}", value));
-        
+
         latch.await();
     }
-    
+
     @Test
-    public void combineLatestOperatorWithMerge() throws InterruptedException {
+    public void mergeOperator() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         Flux.merge(
                 Flux.range(1, 3).delayElements(Duration.ofMillis(500L), Schedulers.newElastic("s-01")),
@@ -263,12 +412,12 @@ public class ReactorEssentialsTest {
                 Flux.range(6, 5).delayElements(Duration.ofMillis(200L), Schedulers.newElastic("s-03"))
         ).doOnComplete(latch::countDown)
                 .subscribe(value -> log.info("merge - onNext: {}", value));
-    
+
         latch.await();
     }
-    
+
     @Test
-    public void combineLatestOperatorWithZip() throws InterruptedException {
+    public void zipOperator() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         Flux.zip(
                 Flux.range(1, 3).delayElements(Duration.ofMillis(500L), Schedulers.newElastic("s-01")),
@@ -276,7 +425,21 @@ public class ReactorEssentialsTest {
                 Flux.range(6, 5).delayElements(Duration.ofMillis(200L), Schedulers.newElastic("s-03"))
         ).doOnComplete(latch::countDown)
                 .subscribe(value -> log.info("zip - onNext: {}", value));
-        
+
+        latch.await();
+    }
+
+    @Test
+    public void combineLatestOperator() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        Flux.combineLatest(
+                Flux.range(1, 3).delayElements(Duration.ofMillis(500L), Schedulers.newElastic("s-01")),
+                Flux.range(4, 2).delayElements(Duration.ofMillis(300L), Schedulers.newElastic("s-02")),
+                Flux.range(6, 5).delayElements(Duration.ofMillis(200L), Schedulers.newElastic("s-03")),
+                Arrays::asList
+        ).doOnComplete(latch::countDown)
+                .subscribe(value -> log.info("combineLatest - onNext: {}", value));
+
         latch.await();
     }
 
@@ -291,6 +454,7 @@ public class ReactorEssentialsTest {
     public void windowByPredicate() {
         Flux<Flux<Integer>> fluxFlux = Flux.range(101, 20)
             .windowUntil(this::isPrime, true);
+//            .windowUntil(this::isPrime, false);
 //            .window(5);
 
         fluxFlux.subscribe(window -> window
@@ -312,11 +476,12 @@ public class ReactorEssentialsTest {
                             list.add(elem);
                             return list;
                         });
+
                 scan.filter(arr -> !arr.isEmpty())
                         .subscribe(data -> log.info("{}: {}", groupFlux.key(), data));
             });
     }
-    
+
     @Test
     public void flatMapExample() throws InterruptedException {
         Flux.just("user-1", "user-2", "user-3")
@@ -326,25 +491,25 @@ public class ReactorEssentialsTest {
 
         Thread.sleep(1000);
     }
-    
+
     private Flux<String> requestBooks(String user) {
-        return Flux.range(1, getRandom(user))
+        return Flux.range(1, getRandomCount(user))
                 .delayElements(Duration.ofMillis(3))
                 .map(i -> "book-" + i);
     }
-    
-    private int getRandom(String user) {
+
+    private int getRandomCount(String user) {
         int rnd = random.nextInt(3) + 1;
-        log.warn("random : {}::{}", user, rnd);
+        log.warn("randomCount : {} :: {}", user, rnd);
         return rnd;
     }
-    
-    
+
+
     @Test
     public void sampleExample() throws InterruptedException {
         Flux.range(1, 100)
             .delayElements(Duration.ofMillis(1))
-            .sample(Duration.ofMillis(100))
+            .sample(Duration.ofMillis(50))
             .subscribe(e -> log.info("onNext: {}", e));
 
         Thread.sleep(1000);
@@ -375,43 +540,45 @@ public class ReactorEssentialsTest {
             .log("FluxEvents")
             .subscribe(e -> {}, e -> {}, () -> {}, s -> s.request(2));
     }
-    
+
     @Test
     public void usingPushOperator() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         Flux.push(emitter -> {
             emitter.onDispose(() -> log.info("Disposed"));
-            IntStream.range(20, 30).parallel()
+            IntStream.range(20, 30)
+                    .parallel()
                     .forEach(t -> emitter.next(Thread.currentThread().getName() + " : " + t));
             emitter.complete();
         })
                 .delayElements(Duration.ofMillis(1))
                 .doOnComplete(latch::countDown)
                 .subscribe(e -> log.info("onNext: {}", e));
-        
-        latch.await(3, TimeUnit.SECONDS);
+
+        latch.await();
     }
-    
+
     @Test
     public void usingCreateOperator() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         Flux.create(emitter -> {
             emitter.onDispose(() -> log.info("Disposed"));
 
-            IntStream.range(20, 30).parallel()
+            IntStream.range(20, 30)
+                    .parallel()
                     .forEach(t -> emitter.next(Thread.currentThread().getName() + " : " + t));
             emitter.complete();
         }).delayElements(Duration.ofMillis(1))
                 .doOnComplete(latch::countDown)
                 .subscribe(e -> log.info("onNext: {}", e));
-    
-        latch.await(3, TimeUnit.SECONDS);
+
+        latch.await();
     }
-    
+
     @Test
     public void usingGenerate() throws InterruptedException {
         Flux.generate(
-                () -> Tuples.of(0L, 1L),
+                () -> Tuples.of(0L, 1L), // 초기값
                 (state, sink) -> {
                     log.info("generated value: {}", state.getT2());
                     sink.next(state.getT2());
@@ -420,10 +587,8 @@ public class ReactorEssentialsTest {
                 })
                 .take(7)
                 .subscribe(e -> log.info("onNext: {}", e));
-        
-        Thread.sleep(100);
     }
-    
+
     @Test
     public void tryWithResources() {
         try (Connection conn = Connection.newConnection()) {
@@ -434,7 +599,6 @@ public class ReactorEssentialsTest {
             log.info("Error: {}", e.getMessage());
         }
     }
-
     @Test
     public void usingOperator() {
         Flux<String> ioRequestResults = Flux.using(
@@ -450,53 +614,24 @@ public class ReactorEssentialsTest {
                 () -> log.info("Stream finished"));
     }
 
-    static class Transaction {
-        private static final Random random = new Random();
-        private final int id;
+    static class Connection implements AutoCloseable {
+        private final Random rnd = new Random();
 
-        public Transaction(int id) {
-            this.id = id;
-            log.info("[T: {}] created", id);
+        static Connection newConnection() {
+            log.info("IO Connection created");
+            return new Connection();
         }
 
-        public static Mono<Transaction> beginTransaction() {
-            return Mono.defer(() ->
-                Mono.just(new Transaction(random.nextInt(1000))));
+        public Iterable<String> getData() {
+            if (rnd.nextInt(10) < 3) {
+                throw new RuntimeException("Communication error");
+            }
+            return Arrays.asList("Some", "data");
         }
 
-        public Flux<String> insertRows(Publisher<String> rows) {
-            return Flux.from(rows)
-                .delayElements(Duration.ofMillis(100))
-                .flatMap(row -> {
-                    if (random.nextInt(10) < 2) {
-                        return Mono.error(new RuntimeException("Error on: " + row));
-                    } else {
-                        return Mono.just(row);
-                    }
-                });
-        }
-
-
-        public Mono<Void> commit() {
-            return Mono.defer(() -> {
-                log.info("[T: {}] commit", id);
-                if (random.nextBoolean()) {
-                    return Mono.empty();
-                } else {
-                    return Mono.error(new RuntimeException("Conflict"));
-                }
-            });
-        }
-
-        public Mono<Void> rollback() {
-            return Mono.defer(() -> {
-                log.info("[T: {}] rollback", id);
-                if (random.nextBoolean()) {
-                    return Mono.empty();
-                } else {
-                    return Mono.error(new RuntimeException("Conn error"));
-                }
-            });
+        @Override
+        public void close() {
+            log.info("IO Connection closed");
         }
     }
 
@@ -533,6 +668,58 @@ public class ReactorEssentialsTest {
         Thread.sleep(1000);
     }
 
+    static class Transaction {
+
+        private static final Random random = new Random();
+
+        private final int id;
+
+        public Transaction(int id) {
+            this.id = id;
+            log.info("[T: {}] created", id);
+        }
+
+        public static Mono<Transaction> beginTransaction() {
+            return Mono.defer(() ->
+                    Mono.just(new Transaction(random.nextInt(1000))));
+        }
+
+        public Flux<String> insertRows(Publisher<String> rows) {
+            return Flux.from(rows)
+                    .delayElements(Duration.ofMillis(100))
+                    .flatMap(row -> {
+                        if (random.nextInt(10) < 2) {
+                            return Mono.error(new RuntimeException("Error on: " + row));
+                        } else {
+                            return Mono.just(row);
+                        }
+                    });
+        }
+
+        public Mono<Void> commit() {
+            return Mono.defer(() -> {
+                log.info("[T: {}] commit", id);
+                if (random.nextBoolean()) {
+                    return Mono.empty();
+                } else {
+                    return Mono.error(new RuntimeException("Conflict"));
+                }
+            });
+        }
+
+        public Mono<Void> rollback() {
+            return Mono.defer(() -> {
+                log.info("[T: {}] rollback", id);
+                if (random.nextBoolean()) {
+                    return Mono.empty();
+                } else {
+                    return Mono.error(new RuntimeException("Conn error"));
+                }
+            });
+        }
+
+    } // Transaction
+
     @Test
     public void managingDemand() {
         Flux.range(1, 100)
@@ -547,52 +734,63 @@ public class ReactorEssentialsTest {
             );
     }
 
-    public Flux<String> recommendedBooks(String userId) {
-        return Flux.defer(() -> {
-            if (random.nextInt(10) < 7) {
-                return Flux.<String>error(new RuntimeException("Conn error"))
-                    .delaySequence(Duration.ofMillis(100));
-            } else {
-                return Flux.just("Blue Mars", "The Expanse")
-                    .delayElements(Duration.ofMillis(50));
-            }
-        }).doOnSubscribe(s -> log.info("Request for {}", userId));
-    }
-
     @Test
-    public void handlingErrors() throws InterruptedException {
-        Flux.just("user-1")
-            .flatMap(user ->
-                recommendedBooks(user)
-                    .retryBackoff(5, Duration.ofMillis(100))
-                    .timeout(Duration.ofSeconds(3))
-                    .onErrorResume(e -> Flux.just("The Martian"))
-            )
-            .subscribe(
-                b -> log.info("onNext: {}", b),
-                e -> log.warn("onError: {}", e.getMessage()),
-                () -> log.info("onComplete")
-            );
+    public void handlingErrorsWithDelay() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
 
-        Thread.sleep(5000);
-    }
-
-    @Test
-    public void handlingErrors1() throws InterruptedException {
         Flux.just("user-1")
                 .flatMap(user ->
-                        recommendedBooks(user)
+                        recommendedBooksWithDelay(user)
                                 .retryWhen(Retry.backoff(5, Duration.ofMillis(100)))
-                                .timeout(Duration.ofSeconds(3))
-                                .onErrorResume(e -> Flux.just("The Martian"))
+                                .timeout(Duration.ofSeconds(1))
+                                .onErrorResume(e -> {
+                                    log.error("onErrorResume : {}", e.getMessage());
+                                    return Flux.just("The Martian");
+                                })
                 )
+                .doOnComplete(latch::countDown)
                 .subscribe(
                         b -> log.info("onNext: {}", b),
                         e -> log.warn("onError: {}", e.getMessage()),
                         () -> log.info("onComplete")
                 );
 
-        Thread.sleep(5000);
+        latch.await();
+    }
+
+    public Flux<String> recommendedBooksWithDelay(String userId) {
+        return Flux.defer(() ->
+                Flux.just("Blue Mars", "The Expanse").delayElements(Duration.ofMillis(1100))
+        ).doOnSubscribe(s -> log.info("Request for {}", userId));
+    }
+
+    @Test
+    public void handlingErrorsWithRuntimeException() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        Flux.just("user-1")
+            .flatMap(user ->
+                recommendedBooksWithRuntimeException(user)
+                    .retryWhen(Retry.backoff(5, Duration.ofMillis(100)))
+                    .timeout(Duration.ofSeconds(1))
+                        .onErrorResume(e -> {
+                            log.error("onErrorResume : {}", e.getMessage());
+                            return Flux.just("The Martian");
+                        })
+            )
+            .doOnComplete(latch::countDown)
+            .subscribe(
+                b -> log.info("onNext: {}", b),
+                e -> log.warn("onError: {}", e.getMessage()),
+                () -> log.info("onComplete")
+            );
+
+        latch.await();
+    }
+
+    public Flux<String> recommendedBooksWithRuntimeException(String userId) {
+        return Flux.defer(() -> Flux.<String>error(new RuntimeException("Conn error")))
+                .doOnSubscribe(s -> log.info("Request for {}", userId));
     }
 
     @Test
@@ -699,77 +897,10 @@ public class ReactorEssentialsTest {
         publisher.subscribe();
     }
 
-    public Mono<User> requestUserData(String userId) {
-        return Mono.defer(() ->
-            isValid(userId)
-                ? Mono.fromCallable(() -> requestUser(userId))
-                : Mono.error(new IllegalArgumentException("Invalid user id")));
-    }
-
-    public Mono<User> requestUserData2(String userId) {
-        return isValid(userId)
-            ? Mono.fromCallable(() -> requestUser(userId))
-            : Mono.error(new IllegalArgumentException("Invalid user id"));
-    }
-
-    private boolean isValid(String userId) {
-        return userId != null;
-    }
-
-    private void doLongAction() {
-        log.info("Long action");
-    }
-
-    private User requestUser(String id) {
-        return new User();
-    }
-
-    private String httpRequest() {
-        log.info("Making HTTP request");
-        throw new RuntimeException("IO error");
-    }
-
     public boolean isPrime(int number) {
         return number > 2
             && IntStream.rangeClosed(2, (int) Math.sqrt(number))
             .noneMatch(n -> (number % n == 0));
     }
 
-    static class Connection implements AutoCloseable {
-        private final Random rnd = new Random();
-
-        static Connection newConnection() {
-            log.info("IO Connection created");
-            return new Connection();
-        }
-
-        public Iterable<String> getData() {
-            if (rnd.nextInt(10) < 3) {
-                throw new RuntimeException("Communication error");
-            }
-            return Arrays.asList("Some", "data");
-        }
-
-        @Override
-        public void close() {
-            log.info("IO Connection closed");
-        }
-    }
-
-    public static class MySubscriber<T> extends BaseSubscriber<T> {
-
-        public void hookOnSubscribe(Subscription subscription) {
-            System.out.println("Subscribed");
-            request(1);
-        }
-
-        public void hookOnNext(T value) {
-            System.out.println(value);
-            request(1);
-        }
-    }
-
-    static class User {
-        public String id, name;
-    }
 }
