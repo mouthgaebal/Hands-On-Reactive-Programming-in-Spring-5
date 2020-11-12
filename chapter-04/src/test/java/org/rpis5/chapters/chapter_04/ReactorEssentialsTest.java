@@ -23,7 +23,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
@@ -288,6 +287,7 @@ public class ReactorEssentialsTest {
     @Test
     public void indexElements() {
         Flux.range(2018, 5)
+                .doOnNext(e -> log.info("range : {}", e))
                 .timestamp()
                 .doOnNext(t2 -> log.info("timeStamp() : {}", t2))
                 .index()
@@ -301,9 +301,9 @@ public class ReactorEssentialsTest {
     public void startStopStreamProcessing() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
 
+        Flux<Long> streamOfData = Flux.interval(Duration.ofMillis(100));
         Mono<?> startCommand = Mono.delay(Duration.ofSeconds(1));
         Mono<?> stopCommand = Mono.delay(Duration.ofSeconds(3));
-        Flux<Long> streamOfData = Flux.interval(Duration.ofMillis(100));
 
         streamOfData
             .skipUntilOther(startCommand) // 이때까지 건너뜀
@@ -430,6 +430,22 @@ public class ReactorEssentialsTest {
     }
 
     @Test
+    public void zipOperatorWithEmtpy() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        Flux.zip(
+                Flux.range(1, 3).delayElements(Duration.ofMillis(500L), Schedulers.newElastic("s-01")),
+                Flux.range(4, 2).delayElements(Duration.ofMillis(300L), Schedulers.newElastic("s-02")),
+                Flux.range(6, 5).delayElements(Duration.ofMillis(200L), Schedulers.newElastic("s-03")),
+                Flux.range(11, 3).delayElements(Duration.ofMillis(600L), Schedulers.newElastic("s-04")).filter(i -> i == 0)
+        ).doOnComplete(() -> {
+            log.warn("Complete!!!");
+            latch.countDown();
+        }).subscribe(value -> log.info("zip - onNext: {}", value));
+
+        latch.await();
+    }
+
+    @Test
     public void combineLatestOperator() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         Flux.combineLatest(
@@ -457,7 +473,8 @@ public class ReactorEssentialsTest {
 //            .windowUntil(this::isPrime, false);
 //            .window(5);
 
-        fluxFlux.subscribe(window -> window
+        fluxFlux
+            .subscribe(window -> window
             .collectList()
             .subscribe(e -> log.info("window: {}", e)));
     }
@@ -467,6 +484,7 @@ public class ReactorEssentialsTest {
         Flux.range(1, 7)
             .groupBy(e -> e % 2 == 0 ? "Even" : "Odd")
             .subscribe(groupFlux -> {
+                log.info("groupFlux : {}", groupFlux.key());
                 Flux<LinkedList<Integer>> scan = groupFlux.scan(
                         new LinkedList<>(),
                         (list, elem) -> {
@@ -484,22 +502,99 @@ public class ReactorEssentialsTest {
 
     @Test
     public void flatMapExample() throws InterruptedException {
-        Flux.just("user-1", "user-2", "user-3")
-            .flatMap(u -> requestBooks(u)
-                .map(b -> u + "/" + b))
-            .subscribe(r -> log.info("onNext: {}", r));
+        CountDownLatch latch = new CountDownLatch(1);
 
-        Thread.sleep(1000);
+        Flux.just("user-1", "user-2", "user-3")
+                .flatMap(u -> requestBooks(u)
+                        .map(b -> u + "/" + b)
+                ).doOnComplete(latch::countDown)
+                .subscribe(r -> log.info("onNext: {}, time : {}", r, System.nanoTime()));
+
+        latch.await();
+    }
+
+    @Test
+    public void flatMapSequentialExample() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        Flux.just("user-1", "user-2", "user-3")
+                .flatMapSequential(u -> requestBooks(u)
+                        .map(b -> u + "/" + b)
+                ).doOnComplete(latch::countDown)
+                .subscribe(r -> log.info("onNext: {}, time : {}", r, System.nanoTime()));
+
+        latch.await();
+    }
+
+    @Test
+    public void concatMapExample() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        Flux.just("user-1", "user-2", "user-3")
+                .concatMap(u -> requestBooks(u)
+                        .map(b -> u + "/" + b)
+                ).doOnComplete(latch::countDown)
+                .subscribe(r -> log.info("onNext: {}, time : {}", r, System.nanoTime()));
+
+        latch.await();
     }
 
     private Flux<String> requestBooks(String user) {
+        log.info("user : {}", user);
         return Flux.range(1, getRandomCount(user))
                 .delayElements(Duration.ofMillis(3))
                 .map(i -> "book-" + i);
     }
 
+    @Test
+    public void flatMapWithRandomDelayExample() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        Flux.just("user-1", "user-2", "user-3")
+                .flatMap(u -> requestBooksWihRandomDelay(u)
+                        .map(b -> u + "/" + b)
+                ).doOnComplete(latch::countDown)
+                .subscribe(r -> log.info("onNext: {}, time : {}", r, System.nanoTime()));
+
+        latch.await();
+    }
+
+    @Test
+    public void flatMapSequentialWithRandomDelayExample() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        Flux.just("user-1", "user-2", "user-3")
+                .flatMapSequential(u -> requestBooksWihRandomDelay(u)
+                        .map(b -> u + "/" + b)
+                ).doOnComplete(latch::countDown)
+                .subscribe(r -> log.info("onNext: {}, time : {}", r, System.nanoTime()));
+
+        latch.await();
+    }
+
+    @Test
+    public void concatMapWithRandomDelayExample() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        Flux.just("user-1", "user-2", "user-3")
+                .concatMap(u -> requestBooksWihRandomDelay(u)
+                        .map(b -> u + "/" + b)
+                ).doOnComplete(latch::countDown)
+                .subscribe(r -> log.info("onNext: {}, time : {}", r, System.nanoTime()));
+
+        latch.await();
+    }
+
+    private Flux<String> requestBooksWihRandomDelay(String user) {
+        log.info("user : {}", user);
+        final int randomCount = getRandomCount(user);
+        return Flux.range(1, randomCount)
+                .delayElements(Duration.ofMillis(randomCount * 100))
+                .map(i -> "book-" + i);
+    }
+
     private int getRandomCount(String user) {
-        int rnd = random.nextInt(3) + 1;
+        int rnd = random.nextInt(5) + 1;
         log.warn("randomCount : {} :: {}", user, rnd);
         return rnd;
     }
