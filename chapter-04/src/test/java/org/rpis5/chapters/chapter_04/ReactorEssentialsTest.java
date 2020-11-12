@@ -8,10 +8,7 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import reactor.core.Disposable;
-import reactor.core.publisher.BaseSubscriber;
-import reactor.core.publisher.ConnectableFlux;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import reactor.core.publisher.*;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 import reactor.util.function.Tuple2;
@@ -24,7 +21,9 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 
 @Slf4j
@@ -467,6 +466,16 @@ public class ReactorEssentialsTest {
     }
 
     @Test
+    public void bufferByDuration() throws Exception {
+        Flux.range(1, 13)
+                .delayElements(Duration.ofMillis(1))
+                .buffer(Duration.ofMillis(5))
+                .subscribe(e -> log.info("onNext: {}", e));
+
+        Thread.sleep(1000);
+    }
+
+    @Test
     public void windowByPredicate() {
         Flux<Flux<Integer>> fluxFlux = Flux.range(101, 20)
             .windowUntil(this::isPrime, true);
@@ -477,6 +486,12 @@ public class ReactorEssentialsTest {
             .subscribe(window -> window
             .collectList()
             .subscribe(e -> log.info("window: {}", e)));
+    }
+
+    public boolean isPrime(int number) {
+        return number > 2
+                && IntStream.rangeClosed(2, (int) Math.sqrt(number))
+                .noneMatch(n -> (number % n == 0));
     }
 
     @Test
@@ -611,6 +626,59 @@ public class ReactorEssentialsTest {
     }
 
     @Test
+    public void toIterableExample() {
+        log.info("start!!");
+        final Iterable<String> iterable = Flux.just(
+                Flux.range(1, 10).delayElements(Duration.ofMillis(20)),
+                Flux.range(11, 10).delayElements(Duration.ofMillis(10)),
+                Flux.range(21, 10).delayElements(Duration.ofMillis(15))
+        ).flatMap(f -> f.map(String::valueOf))
+        .toIterable();
+
+        log.info(String.join(", ", iterable));
+    }
+
+    @Test
+    public void toStreamExample() {
+        log.info("start!!");
+        final Stream<String> stream = Flux.just(
+                Flux.range(1, 10).delayElements(Duration.ofMillis(20)),
+                Flux.range(11, 10).delayElements(Duration.ofMillis(10)),
+                Flux.range(21, 10).delayElements(Duration.ofMillis(15))
+        ).flatMap(f -> f.map(String::valueOf))
+        .toStream()
+        .peek(log::info);
+
+        log.info(stream.collect(Collectors.joining(", ")));
+    }
+
+    @Test
+    public void blockFirstExample() {
+        log.info("start!!");
+        final String first = Flux.just(
+                Flux.range(1, 10).delayElements(Duration.ofMillis(20)),
+                Flux.range(11, 10).delayElements(Duration.ofMillis(10)),
+                Flux.range(21, 10).delayElements(Duration.ofMillis(15))
+        ).flatMap(f -> f.map(String::valueOf))
+        .blockFirst();
+
+        log.info("first : {}", first);
+    }
+
+    @Test
+    public void blockLastExample() {
+        log.info("start!!");
+        final String last = Flux.just(
+                Flux.range(1, 10).delayElements(Duration.ofMillis(20)),
+                Flux.range(11, 10).delayElements(Duration.ofMillis(10)),
+                Flux.range(21, 10).delayElements(Duration.ofMillis(15))
+        ).flatMap(f -> f.map(String::valueOf))
+        .blockLast();
+
+        log.info("last : {}", last);
+    }
+
+    @Test
     public void doOnExample() {
         Flux.just(1, 2, 3)
             .concatWith(Flux.error(new RuntimeException("Conn error")))
@@ -641,14 +709,15 @@ public class ReactorEssentialsTest {
         CountDownLatch latch = new CountDownLatch(1);
         Flux.push(emitter -> {
             emitter.onDispose(() -> log.info("Disposed"));
+            log.info("start!!");
             IntStream.range(20, 30)
                     .parallel()
                     .forEach(t -> emitter.next(Thread.currentThread().getName() + " : " + t));
+            log.info("complete!!");
             emitter.complete();
         })
-                .delayElements(Duration.ofMillis(1))
-                .doOnComplete(latch::countDown)
-                .subscribe(e -> log.info("onNext: {}", e));
+        .doOnComplete(latch::countDown)
+        .subscribe(e -> log.info("onNext: {}", e));
 
         latch.await();
     }
@@ -658,14 +727,15 @@ public class ReactorEssentialsTest {
         CountDownLatch latch = new CountDownLatch(1);
         Flux.create(emitter -> {
             emitter.onDispose(() -> log.info("Disposed"));
-
+            log.info("start!!");
             IntStream.range(20, 30)
                     .parallel()
                     .forEach(t -> emitter.next(Thread.currentThread().getName() + " : " + t));
+            log.info("complete!!");
             emitter.complete();
-        }).delayElements(Duration.ofMillis(1))
-                .doOnComplete(latch::countDown)
-                .subscribe(e -> log.info("onNext: {}", e));
+        })
+        .doOnComplete(latch::countDown)
+        .subscribe(e -> log.info("onNext: {}", e));
 
         latch.await();
     }
@@ -718,7 +788,7 @@ public class ReactorEssentialsTest {
         }
 
         public Iterable<String> getData() {
-            if (rnd.nextInt(10) < 3) {
+            if (rnd.nextBoolean()) {
                 throw new RuntimeException("Communication error");
             }
             return Arrays.asList("Some", "data");
@@ -748,19 +818,22 @@ public class ReactorEssentialsTest {
 
     @Test
     public void usingWhenExample1() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
         Flux.usingWhen(
                 Transaction.beginTransaction(),
                 transaction -> transaction.insertRows(Flux.just("A", "B")),
                 transaction -> transaction.commit(), // complete
                 (transaction, throwable) -> transaction.rollback(), // error
                 transaction -> transaction.rollback() // cancel
-        ).subscribe(
-                d -> log.info("onNext: {}", d),
-                e -> log.error("onError: {}", e.getMessage()),
-                () -> log.info("onComplete")
+        )
+        .doOnTerminate(latch::countDown)
+        .subscribe(
+            d -> log.info("onNext: {}", d),
+            e -> log.error("onError - message : {} // causeMessage : {}", e.getMessage(), e.getCause().getMessage()),
+            () -> log.info("onComplete")
         );
 
-        Thread.sleep(1000);
+        latch.await();
     }
 
     static class Transaction {
@@ -837,9 +910,9 @@ public class ReactorEssentialsTest {
                 .flatMap(user ->
                         recommendedBooksWithDelay(user)
                                 .retryWhen(Retry.backoff(5, Duration.ofMillis(100)))
-                                .timeout(Duration.ofSeconds(1))
+                                .timeout(Duration.ofSeconds(1)) // 예외 없이 timeout 되면 재시도 안함.
                                 .onErrorResume(e -> {
-                                    log.error("onErrorResume : {}", e.getMessage());
+                                    log.warn("onErrorResume : {}", e.getMessage());
                                     return Flux.just("The Martian");
                                 })
                 )
@@ -869,7 +942,7 @@ public class ReactorEssentialsTest {
                     .retryWhen(Retry.backoff(5, Duration.ofMillis(100)))
                     .timeout(Duration.ofSeconds(1))
                         .onErrorResume(e -> {
-                            log.error("onErrorResume : {}", e.getMessage());
+                            log.warn("onErrorResume : {}", e.getMessage());
                             return Flux.just("The Martian");
                         })
             )
@@ -891,13 +964,24 @@ public class ReactorEssentialsTest {
     @Test
     public void coldPublisher() {
         Flux<String> coldPublisher = Flux.defer(() -> {
-            log.info("Generating new items");
-            return Flux.just(UUID.randomUUID().toString());
+            final String data = UUID.randomUUID().toString();
+            log.info("Generating new items. data : {}", data);
+            return Flux.just(data);
         });
 
         log.info("No data was generated so far");
         coldPublisher.subscribe(e -> log.info("onNext: {}", e));
         coldPublisher.subscribe(e -> log.info("onNext: {}", e));
+        log.info("Data was generated twice for two subscribers");
+    }
+
+    @Test
+    public void hotPublisher() {
+        Flux<String> hotPublisher = Flux.just(UUID.randomUUID().toString());
+
+        log.info("No data was generated so far");
+        hotPublisher.subscribe(e -> log.info("onNext: {}", e));
+        hotPublisher.subscribe(e -> log.info("onNext: {}", e));
         log.info("Data was generated twice for two subscribers");
     }
 
@@ -914,6 +998,32 @@ public class ReactorEssentialsTest {
 
         log.info("all subscribers are ready, connecting");
         conn.connect();
+
+        conn.subscribe(e -> log.info("[Subscriber 3] onNext: {}", e));
+        conn.connect();
+    }
+
+    @Test
+    public void connectExample2() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+        ConnectableFlux<Integer> connectableFlux =  Flux.range(0,6).delayElements(Duration.ofMillis(100))
+                .doOnSubscribe(e -> log.info("new subscription for the publisher"))
+                .doOnComplete(() -> {
+                    log.info("complete!!");
+                    latch.countDown();
+                }).publish();
+
+        connectableFlux.subscribe(i -> log.info("subscriber-1 : {}", i));
+        log.info("connect");
+        connectableFlux.connect();
+
+        Thread.sleep(250);
+        connectableFlux.subscribe(i -> log.info("subscriber-2 : {}", i));
+
+        Thread.sleep(250);
+        connectableFlux.subscribe(i -> log.info("subscriber-3 : {}", i));
+
+        latch.await();
     }
 
     @Test
@@ -927,15 +1037,25 @@ public class ReactorEssentialsTest {
         cachedSource.subscribe(e -> log.info("[S 1] onNext: {}", e));
         cachedSource.subscribe(e -> log.info("[S 2] onNext: {}", e));
 
-        Thread.sleep(1200);
-
+        log.info("500ms 대기!!");
+        Thread.sleep(500);
         cachedSource.subscribe(e -> log.info("[S 3] onNext: {}", e));
+
+        log.info("700ms 대기!!");
+        Thread.sleep(700);
+
+        cachedSource.subscribe(e -> log.info("[S 4] onNext: {}", e));
     }
 
     @Test
     public void replayExample() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
         Flux<Integer> source = Flux.range(0, 5)
             .delayElements(Duration.ofMillis(100))
+            .doOnComplete(() -> {
+                log.info("complete!!");
+                latch.countDown();
+            })
             .doOnSubscribe(s ->
                 log.info("new subscription for the cold publisher"));
 
@@ -990,12 +1110,133 @@ public class ReactorEssentialsTest {
 
         publisher.subscribe();
         publisher.subscribe();
+        publisher.subscribe();
+        publisher.subscribe();
     }
 
-    public boolean isPrime(int number) {
-        return number > 2
-            && IntStream.rangeClosed(2, (int) Math.sqrt(number))
-            .noneMatch(n -> (number % n == 0));
+    @Test
+    public void transformDeferredExample() {
+        Function<Flux<String>, Flux<String>> logUserInfo = (stream) -> {
+            if (random.nextBoolean()) {
+                return stream
+                        .doOnNext(e -> log.info("[path A] User: {}", e));
+            } else {
+                return stream
+                        .doOnNext(e -> log.info("[path B] User: {}", e));
+            }
+        };
+
+        Flux<String> publisher = Flux.just("1", "2")
+                .transformDeferred(logUserInfo);
+
+        publisher.subscribe();
+        publisher.subscribe();
+        publisher.subscribe();
+        publisher.subscribe();
+    }
+
+    @Test
+    public void transformExample2() {
+        Function<Flux<String>, Flux<String>> logUserInfo = (stream) -> {
+            if (random.nextBoolean()) {
+                return stream
+                        .doOnNext(e -> log.info("[path A] User: {}", e));
+            } else {
+                return stream
+                        .doOnNext(e -> log.info("[path B] User: {}", e));
+            }
+        };
+
+        Flux<String> publisher = Flux.just("1", "2")
+                .transform(logUserInfo);
+
+        publisher.subscribe();
+        publisher.subscribe();
+        publisher.subscribe();
+        publisher.subscribe();
+    }
+
+    @Test
+    public void directProcessor() throws Exception {
+        final DirectProcessor<Integer> directProcessor = DirectProcessor.create();
+        final FluxSink<Integer> sink = directProcessor.sink();
+        directProcessor.publish(t -> t.map(i -> i * 10));
+
+        directProcessor.subscribe(e -> log.info("sub1 : {}", e));
+        directProcessor.onNext(111); // Non Thread Safe
+        sink.next(1); // Thread Safe
+
+        directProcessor.subscribe(e -> log.info("sub2 : {}", e));
+        sink.next(2);
+        directProcessor.onComplete();
+
+        directProcessor.subscribe(e -> log.info("sub3 : {}", e));
+        sink.next(3);
+    }
+
+    @Test
+    public void unicastProcessor() throws Exception {
+        final UnicastProcessor<Integer> unicastProcessor = UnicastProcessor.create();
+        final FluxSink<Integer> sink = unicastProcessor.sink();
+
+        unicastProcessor.subscribe(e -> log.info("sub1 : {}", e));
+        sink.next(1);
+
+        unicastProcessor.subscribe(e -> log.info("sub2 : {}", e));
+        sink.next(2);
+        unicastProcessor.onComplete();
+
+        unicastProcessor.subscribe(e -> log.info("sub3 : {}", e));
+        sink.next(3);
+    }
+
+    @Test
+    public void emitterProcessor() throws Exception {
+        EmitterProcessor<Long> emitterProcessor = EmitterProcessor.create();
+        emitterProcessor.subscribe(e -> log.info("sub1 : {}", e));
+        FluxSink<Long> sink = emitterProcessor.sink();
+        sink.next(10L);
+        sink.next(11L);
+        sink.next(12L);
+
+        emitterProcessor.subscribe(e -> log.info("sub2 : {}", e));
+        sink.next(13L);
+        sink.next(14L);
+        sink.next(15L);
+    }
+
+    @Test
+    public void emitterProcessor1() throws Exception {
+        EmitterProcessor<String> emitterProcessor = EmitterProcessor.create();
+        FluxSink<String> sink = emitterProcessor.sink();
+
+        final Flux<String> publish = emitterProcessor.publish(t -> t
+                .filter(s -> s.endsWith("World"))
+                .map(String::toUpperCase)
+        );
+
+        publish.subscribe(e -> log.info("sub1 : {}", e));
+        sink.next("Hello World");
+
+        publish.subscribe(e -> log.info("sub2 : {}", e));
+        sink.next("Goodbye World");
+
+        sink.next("Again");
+    }
+
+    @Test
+    public void replayProcessor() throws Exception {
+        ReplayProcessor<Long> replayProcessor = ReplayProcessor.create(3);
+        replayProcessor.subscribe(e -> log.info("sub1 : {}", e));
+
+        FluxSink<Long> sink = replayProcessor.sink();
+        sink.next(10L);
+        sink.next(11L);
+        sink.next(12L);
+        sink.next(13L);
+        sink.next(14L);
+
+        replayProcessor.subscribe(e -> log.info("sub2 : {}", e));
     }
 
 }
