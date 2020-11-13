@@ -1239,4 +1239,42 @@ public class ReactorEssentialsTest {
         replayProcessor.subscribe(e -> log.info("sub2 : {}", e));
     }
 
+    @Test
+    public void topicProcessor() throws Exception {
+        TopicProcessor<Long> topicProcessor = TopicProcessor.<Long>builder()
+                .build();
+
+        topicProcessor.subscribe(e -> log.info("sub1 : {}", e));
+        topicProcessor.subscribe(e -> log.info("sub2 : {}", e));
+
+        FluxSink<Long> sink= topicProcessor.sink();
+        sink.next(10L);
+        sink.next(11L);
+        sink.next(12L);
+        sink.next(13L);
+        sink.next(14L);
+        sink.next(15L);
+
+        Thread.sleep(1000);
+    }
+
+    @Test
+    public void workQueueProcessor() throws Exception {
+        WorkQueueProcessor<Long> workQueueProcessor = WorkQueueProcessor.<Long>builder()
+                .build();
+
+        workQueueProcessor.subscribe(e -> log.info("sub1 : {}", e));
+        workQueueProcessor.subscribe(e -> log.info("sub2 : {}", e));
+
+        FluxSink<Long> sink= workQueueProcessor.sink();
+        sink.next(10L);
+        sink.next(11L);
+        sink.next(12L);
+        sink.next(13L);
+        sink.next(14L);
+        sink.next(15L);
+
+        Thread.sleep(1000);
+    }
+
 }
