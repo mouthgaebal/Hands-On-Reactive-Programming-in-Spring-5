@@ -436,6 +436,7 @@ public class ReactorEssentialsTest {
                 Flux.range(4, 2).delayElements(Duration.ofMillis(300L), Schedulers.newElastic("s-02")),
                 Flux.range(6, 5).delayElements(Duration.ofMillis(200L), Schedulers.newElastic("s-03")),
                 Flux.range(11, 3).delayElements(Duration.ofMillis(600L), Schedulers.newElastic("s-04")).filter(i -> i == 0)
+//                Flux.empty()
         ).doOnComplete(() -> {
             log.warn("Complete!!!");
             latch.countDown();
@@ -461,8 +462,8 @@ public class ReactorEssentialsTest {
     @Test
     public void bufferBySize() {
         Flux.range(1, 13)
-            .buffer(4)
-            .subscribe(e -> log.info("onNext: {}", e));
+                .buffer(3)
+                .subscribe((List<Integer> e) -> log.info("onNext: {}", e));
     }
 
     @Test
@@ -619,7 +620,7 @@ public class ReactorEssentialsTest {
     public void sampleExample() throws InterruptedException {
         Flux.range(1, 100)
             .delayElements(Duration.ofMillis(1))
-            .sample(Duration.ofMillis(50))
+            .sample(Duration.ofMillis(20))
             .subscribe(e -> log.info("onNext: {}", e));
 
         Thread.sleep(1000);
@@ -682,19 +683,19 @@ public class ReactorEssentialsTest {
     public void doOnExample() {
         Flux.just(1, 2, 3)
             .concatWith(Flux.error(new RuntimeException("Conn error")))
-            .doOnEach(s -> log.info("signal: {}", s))
+            .doOnEach((Signal<Integer> s) -> log.info("signal: {}", s))
             .subscribe();
     }
 
     @Test
     public void signalProcessing() {
         Flux.range(1, 3)
-            .doOnNext(e -> System.out.println("data  : " + e))
+            .doOnNext((Integer e) -> System.out.println("data  : " + e))
             .materialize()
-            .doOnNext(e -> System.out.println("signal: " + e))
+            .doOnNext((Signal<Integer> e) -> System.out.println("signal: " + e.getContext().put(e, e)))
             .dematerialize()
             .collectList()
-            .subscribe(r -> System.out.println("result: " + r));
+            .subscribe((List<Object> r) -> System.out.println("result: " + r));
     }
 
     @Test
@@ -744,7 +745,7 @@ public class ReactorEssentialsTest {
     public void usingGenerate() throws InterruptedException {
         Flux.generate(
                 () -> Tuples.of(0L, 1L), // 초기값
-                (state, sink) -> {
+                (Tuple2<Long, Long> state, SynchronousSink<Object> sink) -> {
                     log.info("generated value: {}", state.getT2());
                     sink.next(state.getT2());
                     long newValue = state.getT1() + state.getT2();
@@ -949,7 +950,7 @@ public class ReactorEssentialsTest {
             .doOnComplete(latch::countDown)
             .subscribe(
                 b -> log.info("onNext: {}", b),
-                e -> log.warn("onError: {}", e.getMessage()),
+                e -> log.error("onError: {}", e.getMessage()),
                 () -> log.info("onComplete")
             );
 
@@ -970,8 +971,8 @@ public class ReactorEssentialsTest {
         });
 
         log.info("No data was generated so far");
-        coldPublisher.subscribe(e -> log.info("onNext: {}", e));
-        coldPublisher.subscribe(e -> log.info("onNext: {}", e));
+        coldPublisher.subscribe(e -> log.info("onNext1: {}", e));
+        coldPublisher.subscribe(e -> log.info("onNext2: {}", e));
         log.info("Data was generated twice for two subscribers");
     }
 
@@ -980,8 +981,8 @@ public class ReactorEssentialsTest {
         Flux<String> hotPublisher = Flux.just(UUID.randomUUID().toString());
 
         log.info("No data was generated so far");
-        hotPublisher.subscribe(e -> log.info("onNext: {}", e));
-        hotPublisher.subscribe(e -> log.info("onNext: {}", e));
+        hotPublisher.subscribe(e -> log.info("onNext1: {}", e));
+        hotPublisher.subscribe(e -> log.info("onNext2: {}", e));
         log.info("Data was generated twice for two subscribers");
     }
 
@@ -993,6 +994,7 @@ public class ReactorEssentialsTest {
 
         ConnectableFlux<Integer> conn = source.publish();
 
+        source.subscribe(e -> log.info("source : {}", e));
         conn.subscribe(e -> log.info("[Subscriber 1] onNext: {}", e));
         conn.subscribe(e -> log.info("[Subscriber 2] onNext: {}", e));
 
@@ -1048,7 +1050,7 @@ public class ReactorEssentialsTest {
     }
 
     @Test
-    public void replayExample() throws InterruptedException {
+    public void shareExample() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         Flux<Integer> source = Flux.range(0, 5)
             .delayElements(Duration.ofMillis(100))
@@ -1059,11 +1061,11 @@ public class ReactorEssentialsTest {
             .doOnSubscribe(s ->
                 log.info("new subscription for the cold publisher"));
 
-        Flux<Integer> cachedSource = source.share();
+        Flux<Integer> share = source.share();
 
-        cachedSource.subscribe(e -> log.info("[S 1] onNext: {}", e));
+        share.subscribe(e -> log.info("[S 1] onNext: {}", e));
         Thread.sleep(400);
-        cachedSource.subscribe(e -> log.info("[S 2] onNext: {}", e));
+        share.subscribe(e -> log.info("[S 2] onNext: {}", e));
 
         Thread.sleep(1000);
     }
