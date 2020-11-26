@@ -9,6 +9,7 @@ import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import reactor.core.Disposable;
 import reactor.core.publisher.*;
+import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 import reactor.util.function.Tuple2;
@@ -20,6 +21,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -1278,5 +1280,41 @@ public class ReactorEssentialsTest {
 
         Thread.sleep(1000);
     }
-
+    
+    @Test
+    public void publishOn() throws Exception {
+        Scheduler scheduler = Schedulers.boundedElastic();
+    
+        Flux<Integer> flux = Flux.range(1, 10)
+                .doOnNext(e -> log.info("before : {}", e))
+                .publishOn(scheduler)
+                .doOnNext(e -> log.info("after : {}", e));
+    
+        flux.subscribe(e -> log.info("sub1 : {}", e));
+        flux.subscribe(e -> log.info("sub2 : {}", e));
+    
+        TimeUnit.SECONDS.sleep(2);
+    }
+    
+    @Test
+    public void subscribeOn() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+    
+        Scheduler sub = Schedulers.newElastic("sub");
+        Scheduler pub = Schedulers.newElastic("pub");
+        Mono.fromCallable(() -> 999)
+                .doOnNext(e -> log.info("fromCallable"))
+                .filter(i -> i > 0)
+                .doOnNext(e -> log.info("filter"))
+                .publishOn(pub)
+                .doOnNext(e -> log.info("publishOn"))
+                .map(i -> i + 1)
+                .doOnNext(e -> log.info("map"))
+                .subscribeOn(sub)
+                .doOnNext(e -> log.info("subscribeOn"))
+                .doOnTerminate(latch::countDown)
+                .subscribe();
+        
+        latch.await();
+    }
 }

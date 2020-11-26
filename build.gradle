@@ -30,4 +30,10 @@ subprojects {
     jcenter()
     mavenCentral()
   }
+
+  dependencies {
+    compile('org.projectlombok:lombok')
+    annotationProcessor('org.projectlombok:lombok')
+  }
+
 }

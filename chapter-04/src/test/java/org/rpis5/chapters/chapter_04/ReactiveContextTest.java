@@ -17,6 +17,12 @@ public class ReactiveContextTest {
                 .flatMap(__ -> printCurrentContext("initial"))
                 .block();
     }
+    
+    Mono<Context> printCurrentContext(String id) {
+        return Mono
+                .subscriberContext()
+                .doOnNext(context -> print(id, context));
+    }
 
     void print(String id, Context context) {
         System.out.println(id + " {");
@@ -24,11 +30,5 @@ public class ReactiveContextTest {
         System.out.println(context);
         System.out.println("}");
         System.out.println();
-    }
-
-    Mono<Context> printCurrentContext(String id) {
-        return Mono
-                .subscriberContext()
-                .doOnNext(context -> print(id, context));
     }
 }

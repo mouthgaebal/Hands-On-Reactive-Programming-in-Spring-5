@@ -9,16 +9,6 @@ import org.springframework.core.ReactiveTypeDescriptor;
 
 public class MaybeReactiveAdapter extends ReactiveAdapter {
 
-    static {
-        ReactiveAdapterRegistry
-            .getSharedInstance()
-            .registerReactiveType(
-                ReactiveTypeDescriptor.singleOptionalValue(Maybe.class, Maybe::empty),
-                rawMaybe -> ((Maybe<?>)rawMaybe).toFlowable(),
-                publisher -> Flowable.fromPublisher(publisher).singleElement()
-            );
-    }
-
     public MaybeReactiveAdapter() {
         super(
             ReactiveTypeDescriptor.singleOptionalValue(Maybe.class, Maybe::empty),
