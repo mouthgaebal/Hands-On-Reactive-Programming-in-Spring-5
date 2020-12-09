@@ -52,6 +52,9 @@ public class StandaloneApplication {
                 request -> ServerResponse.ok().bodyValue("hello"))
         ).andRoute(RequestPredicates.GET("/world"),
                 request -> ServerResponse.ok().bodyValue("world")
+        ).and(RouterFunctions.route()
+                .GET("/hello-world", request -> ServerResponse.ok().bodyValue("hello-world"))
+                .build()
         );
     }
 }
