@@ -5,6 +5,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.web.reactive.socket.WebSocketMessage;
 import org.springframework.web.reactive.socket.WebSocketSession;
 import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClient;
 import reactor.core.publisher.Flux;
@@ -27,12 +28,17 @@ public class WebSocketApplication {
 
             client.execute(
                     URI.create("http://localhost:8080/ws/echo"),
-                    (WebSocketSession session) -> Flux
-                            .interval(Duration.ofMillis(100))
-                            .map(String::valueOf)
-                            .map(session::textMessage)
-                            .doOnNext(e -> log.info("client : {}", e.getPayloadAsText()))
-                            .as(session::send)
+                    (WebSocketSession session) -> {
+                        session.receive()
+                                .map((WebSocketMessage webSocketMessage) -> webSocketMessage.getPayloadAsText())
+                                .subscribe(e -> log.info("receive : {}", e));
+                        
+                        return Flux.interval(Duration.ofMillis(500))
+                                .map(String::valueOf)
+                                .map(session::textMessage)
+                                .doOnNext(e -> log.info("send : {}", e.getPayloadAsText()))
+                                .as(session::send);
+                    }
             ).subscribe();
         };
     }
